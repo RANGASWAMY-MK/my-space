@@ -1,98 +1,144 @@
-import { useState, useEffect } from 'react';
-import { Modal } from './Modal';
-import { DriveFile } from '@/types';
-import { driveService } from '@/services/driveService';
+import React, { useState } from 'react';
+import './ShareModal.css';
 
 interface ShareModalProps {
-  file: DriveFile | null;
   isOpen: boolean;
   onClose: () => void;
+  shareLink: string;
+  title?: string;
 }
 
-export function ShareModal({ file, isOpen, onClose }: ShareModalProps) {
-  const [shareLink, setShareLink] = useState('');
+const ShareModal: React.FC<ShareModalProps> = ({
+  isOpen,
+  onClose,
+  shareLink,
+  title = 'Share Link',
+}) => {
   const [copied, setCopied] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && file) {
-      setIsLoading(true);
-      driveService.getShareLink(file.id).then((link) => {
-        setShareLink(link);
-        setIsLoading(false);
-      });
-    }
-    setCopied(false);
-  }, [isOpen, file]);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(shareLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareLink).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
-  if (!file) return null;
+  const handleShareToEmail = () => {
+    const subject = encodeURIComponent(title);
+    const body = encodeURIComponent(`Check this out: ${shareLink}`);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  const handleShareToTwitter = () => {
+    const tweetText = encodeURIComponent(`Check this out: ${shareLink}`);
+    window.open(
+      `https://twitter.com/intent/tweet?text=${tweetText}`,
+      '_blank',
+      'width=550,height=420'
+    );
+  };
+
+  const handleShareToFacebook = () => {
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`,
+      '_blank',
+      'width=550,height=420'
+    );
+  };
+
+  const handleShareToLinkedIn = () => {
+    window.open(
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareLink)}`,
+      '_blank',
+      'width=550,height=420'
+    );
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Share File" size="md">
-      <div className="space-y-6">
-        <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-          <span className="text-4xl">{driveService.getFileIcon(file.mimeType)}</span>
-          <div>
-            <p className="font-medium text-gray-900">{file.name}</p>
-            <p className="text-sm text-gray-500">{driveService.formatFileSize(file.size)}</p>
-          </div>
+    <div className="share-modal-overlay" onClick={onClose}>
+      <div className="share-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="share-modal-header">
+          <h2>{title}</h2>
+          <button
+            className="share-modal-close"
+            onClick={onClose}
+            aria-label="Close modal"
+          >
+            ✕
+          </button>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Share Link
-          </label>
-          <div className="flex gap-2">
+        <div className="share-modal-body">
+          <div className="share-link-container">
             <input
               type="text"
-              value={isLoading ? 'Generating link...' : shareLink}
+              className="share-link-input"
+              value={shareLink}
               readOnly
-              className="flex-1 px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-600"
+              onClick={(e) => (e.target as HTMLInputElement).select()}
             />
             <button
-              onClick={handleCopy}
-              disabled={isLoading}
-              className="px-4 py-2.5 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="share-link-copy-btn"
+              onClick={handleCopyLink}
+              title="Copy to clipboard"
             >
-              {copied ? (
-                <>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Copy
-                </>
-              )}
+              {copied ? '✓ Copied!' : 'Copy'}
             </button>
           </div>
-        </div>
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <div className="flex gap-3">
-            <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <div>
-              <p className="text-sm font-medium text-yellow-800">Sharing Settings</p>
-              <p className="text-sm text-yellow-700 mt-1">
-                Anyone with this link can view the file. Manage permissions in Google Drive settings.
-              </p>
+          <div className="share-options">
+            <p className="share-options-label">Share via:</p>
+            <div className="share-buttons">
+              <button
+                className="share-btn share-btn-email"
+                onClick={handleShareToEmail}
+                title="Share via Email"
+                aria-label="Share via Email"
+              >
+                <span className="share-icon">📧</span>
+                <span className="share-label">Email</span>
+              </button>
+              <button
+                className="share-btn share-btn-twitter"
+                onClick={handleShareToTwitter}
+                title="Share on Twitter"
+                aria-label="Share on Twitter"
+              >
+                <span className="share-icon">𝕏</span>
+                <span className="share-label">Twitter</span>
+              </button>
+              <button
+                className="share-btn share-btn-facebook"
+                onClick={handleShareToFacebook}
+                title="Share on Facebook"
+                aria-label="Share on Facebook"
+              >
+                <span className="share-icon">f</span>
+                <span className="share-label">Facebook</span>
+              </button>
+              <button
+                className="share-btn share-btn-linkedin"
+                onClick={handleShareToLinkedIn}
+                title="Share on LinkedIn"
+                aria-label="Share on LinkedIn"
+              >
+                <span className="share-icon">in</span>
+                <span className="share-label">LinkedIn</span>
+              </button>
             </div>
           </div>
         </div>
+
+        <div className="share-modal-footer">
+          <button className="share-modal-btn-close" onClick={onClose}>
+            Close
+          </button>
+        </div>
       </div>
-    </Modal>
+    </div>
   );
-}
+};
+
+export default ShareModal;
